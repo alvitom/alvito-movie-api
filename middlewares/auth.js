@@ -1,5 +1,5 @@
 const jwt = require("jsonwebtoken");
-const ApiResponse = require("../utils/response");
+const httpResponse = require("../utils/httpResponse");
 
 const auth = (req, res, next) => {
   if (req.headers.authorization?.startsWith("Bearer")) {
@@ -15,7 +15,7 @@ const auth = (req, res, next) => {
           errors.authorization = errors.authorization || [];
           errors.authorization.push("Invalid token");
         }
-        return ApiResponse.error(res, "Unauthorized", errors, 401);
+        return httpResponse(res, "Unauthorized", { errors }, 401);
       }
 
       req.user = user;
@@ -35,7 +35,7 @@ const auth = (req, res, next) => {
     }
 
     if (Object.keys(errors).length > 0) {
-      return ApiResponse.error(res, "Validation Error", errors, 400);
+      return httpResponse(res, "Validation Error", { errors }, 400);
     }
   }
 };
@@ -51,11 +51,4 @@ const isAuthenticated = (req, _, next) => {
   next();
 };
 
-const admin = (req, _, next) => {
-  if (req.user.role.toLowerCase() === "admin") {
-    next();
-  } else {
-    throw new ErrorResponse(403, "Forbidden");
-  }
-};
-module.exports = { auth, isAuthenticated, admin };
+module.exports = { auth, isAuthenticated };

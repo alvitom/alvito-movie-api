@@ -1,6 +1,6 @@
 const express = require("express");
-const { movie, tv } = require("../controllers/genre");
 const router = express.Router();
+const { movie, tv } = require("../controllers/discover");
 
 router.get("/movie", movie);
 router.get("/tv", tv);

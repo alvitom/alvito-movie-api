@@ -2,7 +2,7 @@ const crypto = require("crypto");
 const User = require("../models/user");
 const asyncHandler = require("../utils/asyncHandler");
 const { generateToken } = require("../config/jwtToken");
-const ApiResponse = require("../utils/response");
+const httpResponse = require("../utils/httpResponse");
 const generateOtp = require("../utils/otp");
 const sendEmail = require("../utils/nodemailer");
 
@@ -11,7 +11,7 @@ const register = asyncHandler(async (req, res) => {
   const user = await User.findOne({ email });
 
   if (user) {
-    return ApiResponse.error(res, "Forbidden", { email: "Email already exists" }, 409);
+    return httpResponse(res, "Request failed with status code 409", { error: "Email is already registered." }, 409);
   }
 
   const otp = generateOtp();
@@ -33,28 +33,42 @@ const register = asyncHandler(async (req, res) => {
   const data = generateToken({ email, password: req.body.password, expiresIn: "10m" });
   res.cookie("ALVITO_MOVIE_OTP", signedOtp, { maxAge: 600000, httpOnly: true });
   res.cookie("ALVITO_MOVIE_USER", data, { maxAge: 600000, httpOnly: true });
-  ApiResponse.success(res, { token: signedOtp }, "OTP sent successfully", 200);
+  httpResponse(res, "OTP sent successfully", null, 200);
 });
 
 const verifyOtp = asyncHandler(async (req, res) => {
   const user = req.user;
+
   user.emailVerifiedAt = Date.now();
+
   const newUser = await User.create(user);
+
   const token = generateToken({ id: newUser._id, email: newUser.email, expiresIn: "30m" });
+
   await User.findByIdAndUpdate(newUser._id, { refreshToken: token }, { new: true });
+
   res.clearCookie("ALVITO_MOVIE_OTP");
   res.clearCookie("ALVITO_MOVIE_USER");
+
   res.cookie("ALVITO_MOVIE_TOKEN", token, { maxAge: 1800000, httpOnly: true });
-  ApiResponse.success(res, { id: newUser._id, email: newUser.email, token }, "Registered successfully", 201);
+
+  const data = {
+    id: newUser._id,
+    email: newUser.email,
+    token,
+  };
+
+  httpResponse(res, "Registered successfully", { result: data }, 201);
 });
 
 const addUserInfo = asyncHandler(async (req, res) => {
   const { id } = req.user;
   const { name } = req.body;
+
   const findUser = await User.findById(id);
 
   if (!findUser) {
-    return ApiResponse.error(res, "User Not Found", {}, 404);
+    return httpResponse(res, "Request failed with status code 404", { error: "User not found" }, 404);
   }
 
   const token = generateToken({ id: findUser._id, name, email: findUser.email, expiresIn: "30m" });
@@ -62,27 +76,33 @@ const addUserInfo = asyncHandler(async (req, res) => {
   const updatedUser = await User.findByIdAndUpdate(id, { name, refreshToken: token }, { new: true });
 
   res.cookie("ALVITO_MOVIE_TOKEN", token, { maxAge: 1800000, httpOnly: true });
-  ApiResponse.success(res, { id: updatedUser._id, name: updatedUser.name, email: updatedUser.email, token }, "Added User Info successfully", 201);
+
+  const data = {
+    id: updatedUser._id,
+    name: updatedUser.name,
+    email: updatedUser.email,
+    token,
+  };
+
+  httpResponse(res, "Added user info successfully", { result: data }, 201);
 });
 
 const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
   const user = await User.findOne({ email });
-  let errors = {};
 
   if (!user) {
-    errors.email = "Email does not exist";
-    return ApiResponse.error(res, "Invalid Credentials", errors, 401);
+    return httpResponse(res, "Invalid Credentials", { error: "Invalid Email" }, 401);
   }
 
   const isPasswordValid = await user?.matchPassword(password);
+
   if (!isPasswordValid) {
-    errors.password = "Password is incorrect";
-    return ApiResponse.error(res, "Invalid Credentials", errors, 401);
+    return httpResponse(res, "Invalid Credentials", { error: "Invalid Password" }, 401);
   }
 
   if (user?.id === req?.user?.id) {
-    return ApiResponse.error(res, "User Already Logged In", {}, 403);
+    return httpResponse(res, "Request failed with status code 403", { error: "User already logged in" }, 403);
   }
 
   const token = generateToken({ id: user._id, name: user.name, email, expiresIn: "30m" });
@@ -90,48 +110,52 @@ const login = asyncHandler(async (req, res) => {
   await User.findByIdAndUpdate(user._id, { refreshToken: token }, { new: true });
 
   res.cookie("ALVITO_MOVIE_TOKEN", token, { maxAge: 1800000, httpOnly: true });
-  ApiResponse.success(res, { id: user._id, name: user.name, email: user.email, token }, "Logged in successfully", 200);
+
+  const data = {
+    id: user._id,
+    name: user.name,
+    email: user.email,
+    token,
+  };
+
+  httpResponse(res, "Logged in successfully", { result: data }, 200);
 });
 
 const logout = asyncHandler(async (req, res) => {
   const { ALVITO_MOVIE_TOKEN } = req.cookies;
 
   if (!ALVITO_MOVIE_TOKEN) {
-    return ApiResponse.error(res, "No token in cookies", {}, 401);
+    return httpResponse(res, "Request failed with status code 404", { error: "Token not found" }, 404);
   }
 
   const updatedUser = await User.findOneAndUpdate({ refreshToken: ALVITO_MOVIE_TOKEN }, { refreshToken: "" }, { new: true });
 
   if (!updatedUser) {
-    return ApiResponse.error(res, "User Not Found", {}, 404);
+    return httpResponse(res, "Request failed with status code 404", { error: "User not found" }, 404);
   }
 
   res.clearCookie("ALVITO_MOVIE_TOKEN");
-  ApiResponse.success(res, null, "Logged out successfully", 200);
+
+  httpResponse(res, "Logged out successfully", null, 200);
 });
 
 const forgotPassword = asyncHandler(async (req, res) => {
   const { email } = req.body;
+
   const user = await User.findOne({ email });
 
   if (!user) {
-    let errors = {};
-    errors.email = errors.email || [];
-    errors.email.push("Email does not exist");
-    return ApiResponse.error(res, "Invalid Credentials", errors, 401);
+    return httpResponse(res, "Invalid Credentials", { error: "Invalid Email" }, 401);
   }
 
   if (user?.id === req?.user?.id) {
-    let errors = {};
-    errors.email = errors.email || [];
-    errors.email.push("User already logged in");
-    return ApiResponse.error(res, "Forbidden", errors, 403);
+    return httpResponse(res, "Request failed with status code 403", { error: "User already logged in" }, 403);
   }
 
   const resetToken = await user.createPasswordResetToken();
   await user.save();
 
-  const resetUrl = `${req.protocol}://${req.get("host")}/reset-password/${resetToken}`;
+  const resetUrl = `${process.env.ALVITO_MOVIE_CLIENT_BASE_URL}/reset-password/${resetToken}`;
 
   const html = `<h1>Reset Password</h1>
     <p>We received a request to reset your password. Click the button below to reset your password:</p>
@@ -147,14 +171,17 @@ const forgotPassword = asyncHandler(async (req, res) => {
 
   await sendEmail(emailContent);
 
-  ApiResponse.success(res, { token: resetToken }, "Password reset link sent successfully. Please check your email to reset your password", 200);
+  httpResponse(res, "Password reset link sent successfully. Please check your email to reset your password.", null, 200);
 });
 
 const resetPassword = asyncHandler(async (req, res) => {
   const { password } = req.body;
   const { resetToken } = req.params;
+
   const resetPasswordToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+
   const user = await User.findOne({ passwordResetToken: resetPasswordToken });
+
   let errors = {};
 
   if (!user) {
@@ -168,7 +195,7 @@ const resetPassword = asyncHandler(async (req, res) => {
   }
 
   if (Object.keys(errors).length > 0) {
-    return ApiResponse.error(res, "Validation Error", errors, 400);
+    return httpResponse(res, "Unauthorized", { errors }, 401);
   }
 
   user.password = password;
@@ -176,7 +203,7 @@ const resetPassword = asyncHandler(async (req, res) => {
   user.passwordResetExpires = undefined;
   await user.save();
 
-  ApiResponse.success(res, null, "Password reset successfully", 200);
+  httpResponse(res, "Password reset successfully. Please login with your new password.", null, 200);
 });
 
 module.exports = { register, verifyOtp, addUserInfo, login, logout, forgotPassword, resetPassword };

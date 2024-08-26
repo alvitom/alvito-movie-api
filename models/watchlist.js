@@ -12,7 +12,12 @@ const watchlistSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
-    movieId: {
+    mediaType: {
+      type: String,
+      required: true,
+      enum: ["movie", "tv"],
+    },
+    mediaId: {
       type: Number,
       required: true,
     },

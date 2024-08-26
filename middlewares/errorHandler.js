@@ -1,18 +1,21 @@
-const ApiResponse = require("../utils/response");
+const httpResponse = require("../utils/httpResponse");
 
 const notFound = (req, res) => {
-  ApiResponse.error(
+  httpResponse(
     res,
-    "Not Found",
+    "Request failed with status code 404",
     {
-      url: req.originalUrl,
+      error: {
+        information: "URL Not Found",
+        url: req.originalUrl,
+      },
     },
     404
   );
 };
 
 const errorHandler = (err, req, res, next) => {
-  ApiResponse.error(res, err.message || "Something went wrong", {}, err.statusCode || 500);
+  httpResponse(res, "Request failed with status code 500", { error: err.message }, 500);
 };
 
 module.exports = { notFound, errorHandler };

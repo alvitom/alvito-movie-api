@@ -29,10 +29,32 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    role: {
+    avatar: {
       type: String,
-      enum: ["user", "admin"],
-      default: "user",
+    },
+    backgroundImage: {
+      type: String,
+    },
+    gender: {
+      type: String,
+    },
+    bio: {
+      type: String,
+    },
+    facebook: {
+      type: String,
+    },
+    twitter: {
+      type: String,
+    },
+    instagram: {
+      type: String,
+    },
+    tiktok: {
+      type: String,
+    },
+    youtube: {
+      type: String,
     },
     refreshToken: {
       type: String,

@@ -1,5 +1,5 @@
 const jwt = require("jsonwebtoken");
-const ApiResponse = require("../utils/response");
+const httpResponse = require("../utils/httpResponse");
 
 const validateRegister = (req, res, next) => {
   const { email, password, confirmPassword } = req.body;
@@ -59,7 +59,7 @@ const validateRegister = (req, res, next) => {
   }
 
   if (Object.keys(errors).length > 0) {
-    return ApiResponse.error(res, "Validation Error", errors, 400);
+    return httpResponse(res, "Validation Error", { errors }, 400);
   }
 
   next();
@@ -81,23 +81,21 @@ const validateOtp = (req, res, next) => {
   }
 
   if (Object.keys(errors).length > 0) {
-    return ApiResponse.error(res, "Validation Error", errors, 400);
+    return httpResponse(res, "Validation Error", { errors }, 400);
   }
 
   if (!ALVITO_MOVIE_OTP) {
-    return ApiResponse.error(res, "OTP Not Found or OTP has expired, please try again", {}, 404);
+    return httpResponse(res, "Request failed with status code 404", { error: "OTP not found or expired" }, 404);
   }
 
   const { otp } = jwt.verify(ALVITO_MOVIE_OTP, process.env.JWT_SECRET);
 
   if (otp !== req.body.otp || otp === undefined) {
-    errors.otp = errors.otp || [];
-    errors.otp.push("Invalid OTP");
-    return ApiResponse.error(res, "Unauthorized", errors, 401);
+    return httpResponse(res, "Request failed with status code 401", { error: "Invalid OTP" }, 401);
   }
 
   if (!ALVITO_MOVIE_USER) {
-    return ApiResponse.error(res, "User Not Found", {}, 404);
+    return httpResponse(res, "Request failed with status code 404", { error: "User not found" }, 404);
   }
 
   const user = jwt.verify(ALVITO_MOVIE_USER, process.env.JWT_SECRET);
@@ -122,11 +120,11 @@ const validateAddUserInfo = (req, res, next) => {
   }
 
   if (Object.keys(errors).length > 0) {
-    return ApiResponse.error(res, "Validation Error", errors, 400);
+    return httpResponse(res, "Validation Error", { errors }, 400);
   }
 
   if (!ALVITO_MOVIE_TOKEN) {
-    return ApiResponse.error(res, "User Not Found", {}, 404);
+    return httpResponse(res, "Request failed with status code 404", { error: "Token not found" }, 404);
   }
 
   const user = jwt.verify(ALVITO_MOVIE_TOKEN, process.env.JWT_SECRET);
@@ -148,7 +146,7 @@ const validateLogin = (req, res, next) => {
   }
 
   if (Object.keys(errors).length > 0) {
-    return ApiResponse.error(res, "Validation Error", errors, 400);
+    return httpResponse(res, "Validation Error", { errors }, 400);
   }
 
   next();
@@ -170,7 +168,7 @@ const validateEmail = (req, res, next) => {
   }
 
   if (Object.keys(errors).length > 0) {
-    return ApiResponse.error(res, "Validation Error", errors, 400);
+    return httpResponse(res, "Validation Error", { errors }, 400);
   }
 
   next();
@@ -223,7 +221,7 @@ const validatePassword = (req, res, next) => {
   }
 
   if (Object.keys(errors).length > 0) {
-    return ApiResponse.error(res, "Validation Error", errors, 400);
+    return httpResponse(res, "Validation Error", { errors }, 400);
   }
 
   next();
@@ -249,67 +247,51 @@ const validateSearch = (req, res, next) => {
   }
 
   if (Object.keys(errors).length > 0) {
-    return ApiResponse.error(res, "Validation Error", errors, 400);
-  }
-
-  next();
-};
-
-const validateIdParams = (req, res, next) => {
-  const { id } = req.params;
-  let errors = {};
-
-  if (isNaN(parseInt(id))) {
-    errors.id = errors.id || [];
-    errors.id.push("Id must be a number");
-  }
-
-  if (parseInt(id) <= 0) {
-    errors.id = errors.id || [];
-    errors.id.push("Id must be greater than 0");
-  }
-
-  if (id.toString().length > 10) {
-    errors.id = errors.id || [];
-    errors.id.push("Id must be less than 10 characters");
-  }
-
-  if (Object.keys(errors).length > 0) {
-    return ApiResponse.error(res, "Validation Error", errors, 400);
+    return httpResponse(res, "Validation Error", { errors }, 400);
   }
 
   next();
 };
 
 const validateWatchlist = (req, res, next) => {
-  const { movieId } = req.body;
+  const { mediaType, mediaId } = req.body;
   let errors = {};
 
-  if (!movieId) {
-    errors.movieId = errors.movieId || [];
-    errors.movieId.push("Movie Id is required");
+  if (!mediaType) {
+    errors.mediaType = errors.mediaType || [];
+    errors.mediaType.push("Media Type is required");
   }
 
-  if (typeof movieId !== "number") {
-    errors.movieId = errors.movieId || [];
-    errors.movieId.push("Movie Id must be a number");
+  if (!mediaId) {
+    errors.mediaId = errors.mediaId || [];
+    errors.mediaId.push("Media Id is required");
   }
 
-  if (movieId <= 0) {
-    errors.movieId = errors.movieId || [];
-    errors.movieId.push("Movie Id must be greater than 0");
+  if (typeof mediaType !== "string") {
+    errors.mediaType = errors.mediaType || [];
+    errors.mediaType.push("Media Type must be a string");
   }
 
-  if (movieId?.toString().length > 10) {
-    errors.movieId = errors.movieId || [];
-    errors.movieId.push("Movie Id must be less than 10 digits");
+  if (mediaType.toLowerCase() !== "movie" && mediaType.toLowerCase() !== "tv") {
+    errors.mediaType = errors.mediaType || [];
+    errors.mediaType.push("Media Type must be 'movie' or 'tv'");
+  }
+
+  if (typeof mediaId !== "number") {
+    errors.mediaId = errors.mediaId || [];
+    errors.mediaId.push("Media Id must be a number");
+  }
+
+  if (mediaId <= 0) {
+    errors.mediaId = errors.mediaId || [];
+    errors.mediaId.push("Media Id must be greater than 0");
   }
 
   if (Object.keys(errors).length > 0) {
-    return ApiResponse.error(res, "Validation Error", errors, 400);
+    return httpResponse(res, "Validation Error", { errors }, 400);
   }
 
   next();
 };
 
-module.exports = { validateRegister, validateOtp, validateAddUserInfo, validateLogin, validateEmail, validatePassword, validateSearch, validateIdParams, validateWatchlist };
+module.exports = { validateRegister, validateOtp, validateAddUserInfo, validateLogin, validateEmail, validatePassword, validateSearch, validateWatchlist };
