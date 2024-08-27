@@ -7,19 +7,19 @@ const BASE_URL = process.env.ALVITO_MOVIE_API_BASE_URL;
 
 const store = async (req, res, next) => {
   try {
-    const { id } = req.user;
+    const { id, token } = req.user;
     const { mediaType, mediaId } = req.body;
 
-    const user = await User.findOne({ _id: id });
+    const user = await User.findById(id);
 
-    if (!user) {
-      return httpResponse(res, "Request failed with status code 404", { error: "User Not Found" }, 404);
+    if (user?.refreshToken !== token) {
+      return httpResponse(res, "Unauthorized", { errors: { token: ["Invalid token"] } }, 401);
     }
 
     const findMovie = await Watchlist.findOne({ userId: id, mediaType, mediaId });
 
     if (findMovie) {
-      return httpResponse(res, "Request failed with status code 409", { error: "Already Added To Watchlist" }, 409);
+      return httpResponse(res, "Request failed with status code 409", { errors: "Already Added To Watchlist" }, 409);
     }
 
     const response = await axios.get(`${BASE_URL}/${mediaType}/${mediaId}`);
@@ -46,18 +46,18 @@ const store = async (req, res, next) => {
 };
 
 const movies = asyncHandler(async (req, res) => {
-  const { id } = req.user;
+  const { id, token } = req.user;
   const { page = 1 } = req.query;
   const limit = 20;
 
-  if (page < 1 || page > 500 || isNaN(parseInt(page))) {
-    return httpResponse(res, "Request failed with status code 400", { error: "Invalid page: Pages start at 1 and max at 500. They are expected to be an integer." }, 400);
+  if (page < 1 || isNaN(parseInt(page))) {
+    return httpResponse(res, "Request failed with status code 400", { errors: "Invalid page: Pages start at 1. They are expected to be an integer." }, 400);
   }
 
-  const user = await User.findOne({ _id: id });
+  const user = await User.findById(id);
 
-  if (!user) {
-    return httpResponse(res, "Request failed with status code 404", { error: "User Not Found" }, 404);
+  if (user?.refreshToken !== token) {
+    return httpResponse(res, "Unauthorized", { errors: { token: ["Invalid token"] } }, 401);
   }
 
   const watchlist = await Watchlist.find({ userId: id, mediaType: "movie" })
@@ -80,18 +80,18 @@ const movies = asyncHandler(async (req, res) => {
 });
 
 const tv = asyncHandler(async (req, res) => {
-  const { id } = req.user;
+  const { id, token } = req.user;
   const { page = 1 } = req.query;
   const limit = 20;
 
-  if (page < 1 || page > 500 || isNaN(parseInt(page))) {
-    return httpResponse(res, "Request failed with status code 400", { error: "Invalid page: Pages start at 1 and max at 500. They are expected to be an integer." }, 400);
+  if (page < 1 || isNaN(parseInt(page))) {
+    return httpResponse(res, "Request failed with status code 400", { errors: "Invalid page: Pages start at 1. They are expected to be an integer." }, 400);
   }
 
-  const user = await User.findOne({ _id: id });
+  const user = await User.findById(id);
 
-  if (!user) {
-    return httpResponse(res, "Request failed with status code 404", { error: "User Not Found" }, 404);
+  if (user?.refreshToken !== token) {
+    return httpResponse(res, "Unauthorized", { errors: { token: ["Invalid token"] } }, 401);
   }
 
   const watchlist = await Watchlist.find({ userId: id, mediaType: "tv" })
@@ -113,4 +113,41 @@ const tv = asyncHandler(async (req, res) => {
   httpResponse(res, "Watchlist TV Series Retrieved Successfully", data, 200);
 });
 
-module.exports = { store, movies, tv };
+const destroyAll = asyncHandler(async (req, res) => {
+  const { id, token } = req.user;
+
+  const user = await User.findById(id);
+
+  if (user?.refreshToken !== token) {
+    return httpResponse(res, "Unauthorized", { errors: { token: ["Invalid token"] } }, 401);
+  }
+
+  const watchlist = await Watchlist.deleteMany({ userId: id });
+
+  if (watchlist.deletedCount === 0) {
+    return httpResponse(res, "Request failed with status code 404", { errors: "There is no watchlist to delete" }, 404);
+  }
+
+  httpResponse(res, "All Watchlist Deleted Successfully", null, 200);
+});
+
+const destroy = asyncHandler(async (req, res) => {
+  const { id, token } = req.user;
+  const { watchlistId } = req.params;
+
+  const user = await User.findById(id);
+
+  if (user?.refreshToken !== token) {
+    return httpResponse(res, "Unauthorized", { errors: { token: ["Invalid token"] } }, 401);
+  }
+
+  const watchlist = await Watchlist.findByIdAndDelete(watchlistId);
+
+  if (!watchlist) {
+    return httpResponse(res, "Request failed with status code 404", { errors: "Watchlist Not Found" }, 404);
+  }
+
+  httpResponse(res, "Watchlist Deleted Successfully", null, 200);
+});
+
+module.exports = { store, movies, tv, destroyAll, destroy };

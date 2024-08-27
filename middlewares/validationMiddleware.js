@@ -294,4 +294,70 @@ const validateWatchlist = (req, res, next) => {
   next();
 };
 
-module.exports = { validateRegister, validateOtp, validateAddUserInfo, validateLogin, validateEmail, validatePassword, validateSearch, validateWatchlist };
+const validateChangePassword = (req, res, next) => {
+  const { oldPassword, newPassword, confirmPassword } = req.body;
+  let errors = {};
+
+  if (!oldPassword) {
+    errors.oldPassword = errors.oldPassword || [];
+    errors.oldPassword.push("Old Password is required");
+  }
+
+  if (!newPassword) {
+    errors.newPassword = errors.newPassword || [];
+    errors.newPassword.push("New Password is required");
+  }
+
+  if (!confirmPassword) {
+    errors.confirmPassword = errors.confirmPassword || [];
+    errors.confirmPassword.push("Confirm Password is required");
+  }
+
+  if (newPassword?.length < 6 || newPassword?.length > 20) {
+    errors.newPassword = errors.newPassword || [];
+    errors.newPassword.push("New Password must be between 6 and 20 characters");
+  }
+
+  const passwordLowercaseRegex = /^(?=.*[a-z])/;
+  const passwordUppercaseRegex = /^(?=.*[A-Z])/;
+  const passwordNumberRegex = /^(?=.*[0-9])/;
+  const passwordSymbolRegex = /^(?=.*[@$!%^*?&()\-_=+[{\]};:,<.>|~])/;
+
+  if (!passwordLowercaseRegex.test(newPassword)) {
+    errors.newPassword = errors.newPassword || [];
+    errors.newPassword.push("New Password must contain at least one lowercase letter");
+  }
+
+  if (!passwordUppercaseRegex.test(newPassword)) {
+    errors.newPassword = errors.newPassword || [];
+    errors.newPassword.push("New Password must contain at least one uppercase letter");
+  }
+
+  if (!passwordNumberRegex.test(newPassword)) {
+    errors.newPassword = errors.newPassword || [];
+    errors.newPassword.push("New Password must contain at least one number");
+  }
+
+  if (!passwordSymbolRegex.test(newPassword)) {
+    errors.newPassword = errors.newPassword || [];
+    errors.newPassword.push("New Password must contain at least one symbol");
+  }
+
+  if (newPassword !== confirmPassword) {
+    errors.confirmPassword = errors.confirmPassword || [];
+    errors.confirmPassword.push("Passwords do not match");
+  }
+
+  if (oldPassword === newPassword) {
+    errors.newPassword = errors.newPassword || [];
+    errors.newPassword.push("New Password must be different from Old Password");
+  }
+
+  if (Object.keys(errors).length > 0) {
+    return httpResponse(res, "Validation Error", { errors }, 400);
+  }
+
+  next();
+};
+
+module.exports = { validateRegister, validateOtp, validateAddUserInfo, validateLogin, validateEmail, validatePassword, validateSearch, validateWatchlist, validateChangePassword };

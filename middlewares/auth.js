@@ -19,6 +19,7 @@ const auth = (req, res, next) => {
       }
 
       req.user = user;
+      req.user.token = token;
       next();
     });
   } else {
@@ -40,15 +41,4 @@ const auth = (req, res, next) => {
   }
 };
 
-const isAuthenticated = (req, _, next) => {
-  const { ALVITO_MOVIE_TOKEN } = req.cookies;
-
-  if (ALVITO_MOVIE_TOKEN) {
-    const user = jwt.verify(ALVITO_MOVIE_TOKEN, process.env.JWT_SECRET);
-    req.user = user;
-  }
-
-  next();
-};
-
-module.exports = { auth, isAuthenticated };
+module.exports = { auth };

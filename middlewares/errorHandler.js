@@ -5,7 +5,7 @@ const notFound = (req, res) => {
     res,
     "Request failed with status code 404",
     {
-      error: {
+      errors: {
         information: "URL Not Found",
         url: req.originalUrl,
       },
@@ -15,7 +15,7 @@ const notFound = (req, res) => {
 };
 
 const errorHandler = (err, req, res, next) => {
-  httpResponse(res, "Request failed with status code 500", { error: err.message }, 500);
+  httpResponse(res, "Request failed with status code 500", { errors: err.message }, 500);
 };
 
 module.exports = { notFound, errorHandler };
